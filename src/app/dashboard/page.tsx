@@ -6,29 +6,32 @@ import { supabase } from "@/lib/supabase";
 import POForm from "@/components/POForm";
 
 export default function DashboardPage() {
-  const [activeTab, setActiveTab] = useState<"active" | "upcoming" | "history">("upcoming"); // Default to "upcoming"
+  const [activeTab, setActiveTab] = useState<"active" | "upcoming" | "history">("upcoming");
   const [showPOForm, setShowPOForm] = useState(false);
   const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const session = useSession();
 
   // Fetch all purchase orders for the logged-in user
   const fetchPurchaseOrders = async () => {
     if (!session) return;
 
+    setIsLoading(true);
     const { data, error } = await supabase
       .from("purchase_orders")
       .select("*");
 
     if (error) {
-      console.error("Error fetching purchase orders:", error);
     } else {
-      console.log(data);
       setPurchaseOrders(data);
     }
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    fetchPurchaseOrders();
+    if (session) {
+      fetchPurchaseOrders();
+    }
   }, [session]);
 
   // Approve a PO
@@ -39,7 +42,6 @@ export default function DashboardPage() {
       .eq("id", id);
 
     if (error) {
-      console.error("Error approving PO:", error);
     } else {
       fetchPurchaseOrders(); // Refresh the list
     }
@@ -50,19 +52,25 @@ export default function DashboardPage() {
     const today = new Date();
     switch (activeTab) {
       case "active":
+        // Active POs: POs that are approved and not yet completed
         return purchaseOrders.filter(
-          (po) => po.status === "approved" && new Date(po.end_date) >= today
+          (po) =>
+            po.status !== "closed" && // Not closed
+            po.status !== "invoice_sent_to_finance" && // Not completed
+            new Date(po.end_date) >= today // Not past the end date
         );
       case "upcoming":
+        // Upcoming POs: POs that are in the approval stage or pending
         return purchaseOrders.filter(
           (po) =>
-            !po.status || // POs without a status
-            po.status === "pending" || // POs with a status of "pending"
-            (po.status === "approved" && new Date(po.end_date) >= today) // Approved POs that are still active
+            po.status === "approval" || // POs in approval stage
+            po.status === "pending" // POs with a status of "pending"
         );
       case "history":
+        // History POs: POs that are completed or closed
         return purchaseOrders.filter(
           (po) =>
+            po.status === "invoice_sent_to_finance" || // Completed POs
             po.status === "closed" || // Closed POs
             new Date(po.end_date) < today // POs past their end date
         );
@@ -70,6 +78,8 @@ export default function DashboardPage() {
         return [];
     }
   };
+
+  
 
   return (
     <div className="flex-grow pt-24 pb-8">
@@ -203,7 +213,7 @@ const POList = ({
                   {po.status || "Not Approved"}
                 </span>
               </td>
-              {showApproveButton && !po.status && (
+              {showApproveButton && (po.status === "approval" || po.status === "pending") && (
                 <td className="p-2">
                   <button
                     onClick={() => onApprove?.(po.id)}
