@@ -1,0 +1,3 @@
+[submodule "Penny-Pincher-backend"]
+	path = Penny-Pincher-backend
+	url = https://github.com/kentuckyfb/Penny-Pincher-backend.git
