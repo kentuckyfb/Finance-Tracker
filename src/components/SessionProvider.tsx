@@ -1,12 +1,11 @@
-// lib/SessionContext.tsx
-"use client";
 import React, { createContext, useState, useEffect, useContext } from "react";
-import { supabase } from "@/lib/supabase";
-import { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase"; // Import your Supabase client
+import { getSession } from "@/lib/api";
 
 interface SessionContextType {
-  session: Session | null;
+  session: any; // Replace `any` with your session type
   userEmail: string | null;
+  isLoading: boolean; // Add a loading state
 }
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -14,32 +13,33 @@ const SessionContext = createContext<SessionContextType | undefined>(undefined);
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [session, setSession] = useState<Session | null>(null);
+  const [session, setSession] = useState<any>(null); // Replace `any` with your session type
   const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true); // Track loading state
 
   useEffect(() => {
-    async function fetchSession() {
-      const { data: { session } } = await supabase.auth.getSession();
-      setSession(session);
-    }
-    fetchSession();
+    const validateSession = async () => {
+      try {
+        setIsLoading(true); // Start loading
+        const sessionData = await getSession(); // Call the backend to validate the session
+        setSession(sessionData);
+        setUserEmail(sessionData?.user?.email || null);
+      } catch (error) {
+        console.error("Session validation failed:", error);
+        setSession(null);
+        setUserEmail(null);
+      } finally {
+        setIsLoading(false); // Stop loading
+      }
+    };
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-    });
+    validateSession();
   }, []);
-
-  useEffect(() => {
-    if (session?.user?.email) {
-      setUserEmail(session.user.email);
-    } else {
-      setUserEmail(null);
-    }
-  }, [session]);
 
   const value: SessionContextType = {
     session,
     userEmail,
+    isLoading, // Include loading state in the context value
   };
 
   return (

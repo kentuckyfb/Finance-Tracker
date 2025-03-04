@@ -3,7 +3,7 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { supabase }  from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 import { useSession } from '@/components/SessionProvider';
 import { useEffect } from "react";
 
@@ -19,14 +19,17 @@ export default function Navbar() {
 
   return (
     <nav className="fixed top-4 left-1/2 transform -translate-x-1/2 w-[70%] bg-orange-800/90 backdrop-blur-md p-4 rounded-lg z-50 border border-orange-500/50 hover:border-orange-500 transition-all">
-      
+
       <div className="flex justify-between items-center">
         <div className="flex items-center space-x-4">
           <h1 className="text-2xl font-bold text-orange-300">PennyPincher</h1>
           <p className="text-gray-300">{new Date().toLocaleDateString()}</p>
         </div>
         <div className="flex items-center space-x-4">
-          {pathname === "/dashboard/vendors" ? (
+          {pathname === "/dashboard/vendors" ||
+            pathname === "/dashboard/cost-centres" ||
+            pathname === "/dashboard/cost-elements" ||
+            pathname === "/control-panel"? (
             <Link href="/dashboard">
               <button className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 flex items-center space-x-2">
                 <span>Back to Homepage</span>
@@ -41,9 +44,9 @@ export default function Navbar() {
               </button>
             </Link>
           ) : (
-            <Link href="/dashboard/vendors">
+            <Link href="/control-panel">
               <button className="bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 flex items-center space-x-2">
-                <span>Vendors</span>
+                <span>Control Panel</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5"

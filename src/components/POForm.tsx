@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/components/SessionProvider";
+import { fetchVendors, fetchCostCentres, fetchCostElements } from "@/lib/api";
 
 export default function POForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: () => void }) {
   const [estimateNumber, setEstimateNumber] = useState("");
@@ -16,8 +17,8 @@ export default function POForm({ onClose, onSuccess }: { onClose: () => void; on
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [vendorName, setVendorName] = useState("");
-  const [costCentrename, setCostCentrename] = useState<number | null>(null);
-  const [costElementname, setCostElementname] = useState<number | null>(null);
+  const [costCentrename, setCostCentrename] = useState<string>(""); // Change to string
+  const [costElementname, setCostElementname] = useState<string>(""); // Change to string
   const [vendors, setVendors] = useState<any[]>([]);
   const [costCentres, setCostCentres] = useState<any[]>([]);
   const [costElements, setCostElements] = useState<any[]>([]);
@@ -27,13 +28,13 @@ export default function POForm({ onClose, onSuccess }: { onClose: () => void; on
   // Fetch vendors, cost centres, and cost elements
   useEffect(() => {
     const fetchData = async () => {
-      const { data: vendorsData } = await supabase.from("vendors").select("*");
-      const { data: costCentresData } = await supabase.from("cost_centres").select("*");
-      const { data: costElementsData } = await supabase.from("cost_elements").select("*");
+      const vendorsData = await fetchVendors();
+      const costCentresData = await fetchCostCentres();
+      const costElementsData = await fetchCostElements();
 
-      setVendors(vendorsData || []);
-      setCostCentres(costCentresData || []);
-      setCostElements(costElementsData || []);
+      setVendors(vendorsData);
+      setCostCentres(costCentresData);
+      setCostElements(costElementsData);
     };
 
     fetchData();
@@ -69,66 +70,54 @@ export default function POForm({ onClose, onSuccess }: { onClose: () => void; on
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-  
+
     if (!user) {
       setError("You must be logged in to create a purchase order.");
       return;
     }
-  
-    console.log("Creating purchase order...");
-    console.log("Logged-in user:", user);
-    console.log("Estimate Number:", estimateNumber);
-    console.log("Title:", title);
-    console.log("Description:", description);
-    console.log("Amount:", amount);
-    console.log("Type:", type);
-    console.log("Renewal Period:", renewalPeriod);
-    console.log("Start Date:", startDate);
-    console.log("End Date:", endDate);
-    console.log("Vendor Name:", vendorName);
-    console.log("Cost Centre Name:", costCentrename);
-    console.log("Cost Element Name:", costElementname);
-    
-    // Convert cost centre and cost element to string
+
+
     const dataToInsert = {
       estimate_number: estimateNumber,
       title,
       description,
-      amount,
+      amount: Number(amount), // Ensure amount is a number
       type,
       status: "NOT_RAISED", // Default status
       renewal_period: renewalPeriod,
-      start_date: startDate,
-      end_date: endDate,
+      start_date: new Date(startDate).toISOString(), // Convert to ISO string
+      end_date: new Date(endDate).toISOString(), // Convert to ISO string
       user_id: user.session?.user.id, // Use the logged-in user's ID
       vendor_name: vendorName,
-      cost_centre_name: costCentrename ? String(costCentrename) : "", // Convert to string if it's not null
-      cost_element_name: costElementname ? String(costElementname) : "", // Convert to string if it's not null
+      cost_centre_name: costCentrename ? String(costCentrename) : "", // Ensure it's a string
+      cost_element_name: costElementname ? String(costElementname) : "", // Ensure it's a string
     };
-    console.log("Data to insert:", dataToInsert);
-  
-    // Insert into Supabase
-    const { error } = await supabase.from("purchase_orders").insert([dataToInsert]);
-  
-    if (error) {
-      console.log(error);
-      setError(error.message);
-    } else {
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/purchase-orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(dataToInsert),
+      });
+
+      if (!response.ok) throw new Error('Failed to create purchase order');
+
       alert("Purchase order created successfully!");
-      onClose(); // Close the form
-      onSuccess(); // Trigger the onSuccess callback
+      onClose();
+      onSuccess();
+    } catch (error) {
+      console.error(error);
     }
   };
 
   const handleCostCentreChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    setCostCentrename(value ? parseInt(value) : null); // Check if value is not empty
+    setCostCentrename(value); // No need to parse as number
   };
-  
-  // For cost element name
+
   const handleCostElementChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const value = e.target.value;
-    setCostElementname(value ? parseInt(value) : null); // Check if value is not empty
+    setCostElementname(value); // No need to parse as number
   };
 
   return (
@@ -288,7 +277,7 @@ export default function POForm({ onClose, onSuccess }: { onClose: () => void; on
               >
                 <option value="">Select a cost centre</option>
                 {costCentres.map((cc) => (
-                  <option key={cc.id} value={cc.id}>
+                  <option key={cc.id} value={cc.name}> {/* Use `cc.name` instead of `cc.id` */}
                     {cc.name}
                   </option>
                 ))}
@@ -304,7 +293,7 @@ export default function POForm({ onClose, onSuccess }: { onClose: () => void; on
               >
                 <option value="">Select a cost element</option>
                 {costElements.map((ce) => (
-                  <option key={ce.id} value={ce.id}>
+                  <option key={ce.id} value={ce.name}> {/* Use `ce.name` instead of `ce.id` */}
                     {ce.name}
                   </option>
                 ))}
